@@ -1,0 +1,81 @@
+
+name: Gerar APK Minecraft Launcher
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compilar APK Android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Reunir arquivos do projeto
+        run: |
+          set -e
+
+          for i in 1 2 3 4 5; do
+            test -f "wjdb${i}"
+          done
+
+          for i in 1 2 3 4 5; do
+            cat "wjdb${i}" >> project.zip
+          done
+
+          unzip -t project.zip
+          mkdir extracted
+          unzip -q project.zip -d extracted
+
+          test -f extracted/PojavLauncher-gladiolus/gradlew
+
+      - name: Instalar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar componentes Android
+        run: |
+          yes | sdkmanager --licenses
+
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "ndk;25.2.9519653"
+
+      - name: Compilar APK
+        run: |
+          cd extracted/PojavLauncher-gladiolus
+
+          chmod +x gradlew
+
+          ./gradlew --no-daemon \
+            :app_pojavlauncher:assembleDebug
+
+      - name: Verificar APK
+        run: |
+          APK_DIR="extracted/PojavLauncher-gladiolus/app_pojavlauncher/build/outputs/apk/debug"
+
+          find "$APK_DIR" -name "*.apk"
+
+          test -n "$(find "$APK_DIR" -name "*.apk" -print -quit)"
+
+      - name: Disponibilizar APK para baixar
+        uses: actions/upload-artifact@v4
+        with:
+          name: Minecraft-Launcher-APK
+          path: extracted/PojavLauncher-gladiolus/app_pojavlauncher/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
+          
